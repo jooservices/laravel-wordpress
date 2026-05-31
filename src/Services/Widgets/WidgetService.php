@@ -5,27 +5,28 @@ declare(strict_types=1);
 namespace Jooservices\LaravelWordPress\Services\Widgets;
 
 use Jooservices\LaravelWordPress\Models\Site;
-use Jooservices\LaravelWordPress\Services\Concerns\BuildsResourceServices;
 use Jooservices\LaravelWordPress\Services\Shared\ResourceService;
+use Jooservices\LaravelWordPress\Services\Shared\ResourceServiceFactory;
 
 final class WidgetService
 {
-    use BuildsResourceServices;
-
-    public function __construct(private readonly Site $site) {}
+    public function __construct(
+        private readonly Site $site,
+        private readonly ResourceServiceFactory $resources,
+    ) {}
 
     public function sidebars(): ResourceService
     {
-        return $this->resource('sidebars');
+        return $this->resources->make($this->site, 'sidebars');
     }
 
     public function widgets(): ResourceService
     {
-        return $this->resource('widgets');
+        return $this->resources->make($this->site, 'widgets');
     }
 
     public function types(): ResourceService
     {
-        return $this->resource('widget-types');
+        return $this->resources->make($this->site, 'widget-types');
     }
 }

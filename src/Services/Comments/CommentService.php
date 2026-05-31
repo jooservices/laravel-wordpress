@@ -6,18 +6,19 @@ namespace Jooservices\LaravelWordPress\Services\Comments;
 
 use BadMethodCallException;
 use Jooservices\LaravelWordPress\Models\Site;
-use Jooservices\LaravelWordPress\Services\Concerns\BuildsResourceServices;
 use Jooservices\LaravelWordPress\Services\Shared\ResourceService;
+use Jooservices\LaravelWordPress\Services\Shared\ResourceServiceFactory;
 
 final class CommentService
 {
-    use BuildsResourceServices;
-
-    public function __construct(private readonly Site $site) {}
+    public function __construct(
+        private readonly Site $site,
+        private readonly ResourceServiceFactory $resources,
+    ) {}
 
     public function comments(): ResourceService
     {
-        return $this->resource('comments');
+        return $this->resources->make($this->site, 'comments');
     }
 
     public function __call(string $method, array $parameters): mixed

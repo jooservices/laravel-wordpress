@@ -8,6 +8,7 @@ use Illuminate\Support\ServiceProvider;
 use Jooservices\LaravelWordPress\Services\Manager;
 use Jooservices\LaravelWordPress\Services\Shared\MediaStorage;
 use Jooservices\LaravelWordPress\Services\Shared\PayloadHasher;
+use Jooservices\LaravelWordPress\Services\Shared\ResourceServiceFactory;
 use Jooservices\LaravelWordPress\Services\Shared\SyncStateChecker;
 
 final class LaravelWordPressServiceProvider extends ServiceProvider
@@ -22,6 +23,7 @@ final class LaravelWordPressServiceProvider extends ServiceProvider
         $this->app->singleton(PayloadHasher::class);
         $this->app->singleton(SyncStateChecker::class);
         $this->app->singleton(MediaStorage::class);
+        $this->app->singleton(ResourceServiceFactory::class);
     }
 
     public function boot(): void

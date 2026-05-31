@@ -14,27 +14,26 @@ use Jooservices\LaravelWordPress\Exceptions\WordPressException;
 use Jooservices\LaravelWordPress\Models\Page;
 use Jooservices\LaravelWordPress\Models\Post;
 use Jooservices\LaravelWordPress\Models\Site;
-use Jooservices\LaravelWordPress\Services\Concerns\BuildsResourceServices;
 use Jooservices\LaravelWordPress\Services\Shared\ResourceRegistry;
 use Jooservices\LaravelWordPress\Services\Shared\ResourceService;
+use Jooservices\LaravelWordPress\Services\Shared\ResourceServiceFactory;
 
 final class ContentService
 {
-    use BuildsResourceServices;
-
     public function __construct(
         private readonly Site $site,
         private readonly ResourceRegistry $resources,
+        private readonly ResourceServiceFactory $factory,
     ) {}
 
     public function posts(): ResourceService
     {
-        return $this->resource('posts');
+        return $this->factory->make($this->site, 'posts');
     }
 
     public function pages(): ResourceService
     {
-        return $this->resource('pages');
+        return $this->factory->make($this->site, 'pages');
     }
 
     public function createPost(PostCreateData $data, bool $push = false): Model|SyncConflict
@@ -77,12 +76,12 @@ final class ContentService
 
     public function revisions(string $type = 'post'): ResourceService
     {
-        return $this->resource($type === 'page' ? 'page-revisions' : 'post-revisions');
+        return $this->factory->make($this->site, $type === 'page' ? 'page-revisions' : 'post-revisions');
     }
 
     public function autosaves(string $type = 'post'): ResourceService
     {
-        return $this->resource($type === 'page' ? 'page-autosaves' : 'post-autosaves');
+        return $this->factory->make($this->site, $type === 'page' ? 'page-autosaves' : 'post-autosaves');
     }
 
     public function type(string $type): ResourceService
@@ -99,6 +98,6 @@ final class ContentService
             throw new WordPressException("Content type [{$type}] is not supported by this package.");
         }
 
-        return $this->resource($definition->key());
+        return $this->factory->make($this->site, $definition->key());
     }
 }

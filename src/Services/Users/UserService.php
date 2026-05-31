@@ -6,18 +6,19 @@ namespace Jooservices\LaravelWordPress\Services\Users;
 
 use BadMethodCallException;
 use Jooservices\LaravelWordPress\Models\Site;
-use Jooservices\LaravelWordPress\Services\Concerns\BuildsResourceServices;
 use Jooservices\LaravelWordPress\Services\Shared\ResourceService;
+use Jooservices\LaravelWordPress\Services\Shared\ResourceServiceFactory;
 
 final class UserService
 {
-    use BuildsResourceServices;
-
-    public function __construct(private readonly Site $site) {}
+    public function __construct(
+        private readonly Site $site,
+        private readonly ResourceServiceFactory $resources,
+    ) {}
 
     public function users(): ResourceService
     {
-        return $this->resource('users');
+        return $this->resources->make($this->site, 'users');
     }
 
     public function __call(string $method, array $parameters): mixed

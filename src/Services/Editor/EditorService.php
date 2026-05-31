@@ -5,42 +5,43 @@ declare(strict_types=1);
 namespace Jooservices\LaravelWordPress\Services\Editor;
 
 use Jooservices\LaravelWordPress\Models\Site;
-use Jooservices\LaravelWordPress\Services\Concerns\BuildsResourceServices;
 use Jooservices\LaravelWordPress\Services\Shared\ResourceService;
+use Jooservices\LaravelWordPress\Services\Shared\ResourceServiceFactory;
 
 final class EditorService
 {
-    use BuildsResourceServices;
-
-    public function __construct(private readonly Site $site) {}
+    public function __construct(
+        private readonly Site $site,
+        private readonly ResourceServiceFactory $resources,
+    ) {}
 
     public function blocks(): ResourceService
     {
-        return $this->resource('blocks');
+        return $this->resources->make($this->site, 'blocks');
     }
 
     public function blockTypes(): ResourceService
     {
-        return $this->resource('block-types');
+        return $this->resources->make($this->site, 'block-types');
     }
 
     public function patterns(): ResourceService
     {
-        return $this->resource('block-patterns');
+        return $this->resources->make($this->site, 'block-patterns');
     }
 
     public function templates(): ResourceService
     {
-        return $this->resource('templates');
+        return $this->resources->make($this->site, 'templates');
     }
 
     public function templateParts(): ResourceService
     {
-        return $this->resource('template-parts');
+        return $this->resources->make($this->site, 'template-parts');
     }
 
     public function globalStyles(): ResourceService
     {
-        return $this->resource('global-styles');
+        return $this->resources->make($this->site, 'global-styles');
     }
 }
