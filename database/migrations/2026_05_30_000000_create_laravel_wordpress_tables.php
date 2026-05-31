@@ -52,6 +52,7 @@ return new class extends Migration
         foreach ($this->simpleEntityTables() as $name) {
             Schema::create($this->table($name), function (Blueprint $table): void {
                 $this->addBaseEntityColumns($table);
+                $this->addCommonResourceColumns($table);
             });
         }
     }
@@ -139,6 +140,12 @@ return new class extends Migration
             $table->string('remote_hash')->nullable();
             $table->string('local_hash')->nullable();
             $table->string('file_hash')->nullable();
+            $table->string('sync_status')->default('local_only');
+            $table->timestamp('synced_at')->nullable();
+            $table->timestamp('last_pulled_at')->nullable();
+            $table->timestamp('last_pushed_at')->nullable();
+            $table->json('conflict_payload')->nullable();
+            $table->timestamp('conflicted_at')->nullable();
             $table->json('record_conflict_payload')->nullable();
             $table->json('file_conflict_payload')->nullable();
             $table->timestamp('record_conflicted_at')->nullable();
@@ -152,6 +159,7 @@ return new class extends Migration
             $table->index(['site_id', 'post_remote_id']);
             $table->index(['site_id', 'record_sync_status']);
             $table->index(['site_id', 'file_sync_status']);
+            $table->index(['site_id', 'sync_status']);
         });
     }
 
@@ -178,6 +186,20 @@ return new class extends Migration
         if ($withUniqueRemote) {
             $table->unique(['site_id', 'remote_id']);
         }
+    }
+
+    private function addCommonResourceColumns(Blueprint $table): void
+    {
+        $table->json('title')->nullable();
+        $table->string('name')->nullable();
+        $table->string('slug')->nullable();
+        $table->string('status')->nullable();
+        $table->string('type')->nullable();
+        $table->string('link')->nullable();
+        $table->text('description')->nullable();
+        $table->json('content')->nullable();
+        $table->json('excerpt')->nullable();
+        $table->json('meta')->nullable();
     }
 
     private function simpleEntityTables(): array

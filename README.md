@@ -50,3 +50,25 @@ composer test:integration
 composer test:real
 composer quality
 ```
+
+### Docker Real Integration Test
+
+The Docker workflow installs a fresh Laravel app, installs this package into it with a Composer path repository, installs WordPress with WP-CLI, seeds real WordPress records and media files, runs Laravel package migrations, and executes a PHPUnit smoke test against the real services.
+
+Prerequisites: Docker and Docker Compose.
+
+```bash
+./scripts/test-docker.sh
+```
+
+The workflow validates package discovery, config loading, package migrations, WP-CLI availability, WordPress installation, real WordPress post/media generation, WordPress-to-Laravel pull sync, media record pull and file download, update handling, and idempotent repeated pull behavior. It writes:
+
+```text
+artifacts/integration-report.json
+artifacts/integration-summary.txt
+artifacts/junit.xml
+```
+
+The JSON report includes environment versions, package capabilities, WordPress record counts, Laravel record counts, media file checks, pull/push/idempotency results, assertions, failures, and limitations. Push services exist in the package, but the Docker smoke suite currently reports push as untested because post-specific Laravel-originated mapping for author, taxonomy, meta, featured media, and rendered content is not represented by a dedicated DTO.
+
+Useful defaults can be overridden with environment variables such as `DB_HOST`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `WORDPRESS_PATH`, `WORDPRESS_URL`, `LARAVEL_APP_PATH`, and `PACKAGE_PATH`. If the run fails, inspect `artifacts/integration-report.json`, `artifacts/integration-summary.txt`, and the Docker output; the WordPress PHP server log is written inside the app container at `/tmp/wordpress-test-server.log`.
