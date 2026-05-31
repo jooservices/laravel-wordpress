@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Jooservices\LaravelWordPress\Services\Media;
 
+use Jooservices\LaravelWordPress\DTOs\Media\MediaUploadData;
 use Jooservices\LaravelWordPress\Models\MediaItem;
 use Jooservices\LaravelWordPress\Models\Site;
-use Jooservices\LaravelWordPress\Services\Shared\MediaStorage;
-use Jooservices\LaravelWordPress\Services\Shared\ResourceService;
 use Jooservices\LaravelWordPress\Services\Shared\ResourceServiceFactory;
 
 final class MediaService
@@ -17,9 +16,14 @@ final class MediaService
         private readonly ResourceServiceFactory $resources,
     ) {}
 
-    public function records(): ResourceService
+    public function records(): MediaRecordService
     {
-        return $this->resources->make($this->site, 'media');
+        return new MediaRecordService($this->site, $this->resources);
+    }
+
+    public function files(): MediaFileService
+    {
+        return app(MediaFileService::class, ['site' => $this->site]);
     }
 
     public function pull(array $query = []): object
@@ -29,17 +33,17 @@ final class MediaService
 
     public function downloadFile(MediaItem $media): MediaItem
     {
-        return app(MediaStorage::class)->download($media);
+        return $this->files()->download($media);
     }
 
-    public function uploadFile(MediaItem $media): mixed
+    public function uploadFile(MediaUploadData $data): MediaItem
     {
-        return $this->records()->push($media, true);
+        return $this->files()->upload($data);
     }
 
     public function deleteLocalFile(MediaItem $media): bool
     {
-        return app(MediaStorage::class)->deleteLocalFile($media);
+        return $this->files()->deleteLocal($media);
     }
 
     public function checkRecordSyncState(MediaItem $media): object

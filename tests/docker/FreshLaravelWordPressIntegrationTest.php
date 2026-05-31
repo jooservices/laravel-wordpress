@@ -13,6 +13,7 @@ use Jooservices\LaravelWordPress\DTOs\Content\PageCreateData;
 use Jooservices\LaravelWordPress\DTOs\Content\PostCreateData;
 use Jooservices\LaravelWordPress\DTOs\Content\PostUpdateData;
 use Jooservices\LaravelWordPress\DTOs\Credentials\CredentialCreateData;
+use Jooservices\LaravelWordPress\DTOs\Media\MediaUploadData;
 use Jooservices\LaravelWordPress\DTOs\Shared\SyncConflict;
 use Jooservices\LaravelWordPress\DTOs\Sites\SiteCreateData;
 use Jooservices\LaravelWordPress\Enums\AuthType;
@@ -33,6 +34,7 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
         $report = $this->baseReport();
         $failures = [];
         $caught = null;
+        $uploadedMedia = null;
 
         try {
             $this->assertAndRecord($report, $failures, 'wp_cli_installed', trim((string) shell_exec('command -v wp')) !== '');
@@ -117,6 +119,23 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
                     'source_url' => $inline->source_url,
                 ]);
             }
+
+            $uploadPath = sys_get_temp_dir().'/laravel-wordpress-upload.txt';
+            File::put($uploadPath, 'Docker media upload '.bin2hex(random_bytes(8)));
+            $uploadedMedia = WordPress::site($site)->media()->files()->upload(new MediaUploadData(
+                path: $uploadPath,
+                filename: 'laravel-wordpress-upload.txt',
+                title: 'Laravel WordPress Upload',
+                caption: 'Uploaded by Docker integration',
+                description: 'Real media byte upload from Laravel package integration test.',
+                altText: 'Laravel WordPress upload',
+            ));
+            $remoteUploadedMedia = WordPress::site($site)->media()->records()->getRemote((int) $uploadedMedia->remote_id);
+            $this->assertAndRecord($report, $failures, 'media_file_uploaded_to_wordpress_and_persisted_locally', $uploadedMedia->remote_id !== null && $remoteUploadedMedia !== null && MediaItem::query()->where('remote_id', $uploadedMedia->remote_id)->exists(), [
+                'remote_id' => $uploadedMedia->remote_id,
+                'source_url' => $uploadedMedia->source_url,
+                'local_id' => $uploadedMedia->getKey(),
+            ]);
 
             $postCountAfterInitialPull = Post::query()->count();
             $mediaCountAfterInitialPull = MediaItem::query()->count();
@@ -309,7 +328,7 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
                 'trash_unpublish_delete_supported' => 'trash_and_unpublish_supported_force_delete_explicit_only',
                 'author_push_support' => 'payload_supported_not_asserted_in_docker_runtime',
                 'custom_meta_support' => 'registered_rest_meta_only',
-                'media_upload_supported' => false,
+                'media_upload_supported' => true,
                 'conflict_support' => 'dirty_local_records_are_marked_conflict_on_pull_or_push_without_force',
                 'media_record_pull_supported' => true,
                 'media_file_copy_supported' => 'explicit_download_only',
@@ -317,10 +336,10 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
                 'wp_bootstrap_supported' => File::exists($this->wordpressPath().'/wp-load.php'),
             ];
             $report['schema_audit'] = $this->schemaAudit();
-            $report['limitations'][] = 'Media pull stores attachment records and source URLs; local file bytes are copied only for records passed to downloadFile().';
+            $report['limitations'][] = 'Media pull stores attachment records and source URLs; local file bytes are copied only for records passed to files()->download() or downloadFile().';
             $report['limitations'][] = 'Post/page meta payloads are sent only for meta keys registered with show_in_rest=true; default WordPress REST omits unregistered custom meta keys.';
             $report['limitations'][] = 'Docker push create lets WordPress assign the authenticated author because this runtime rejects explicit author assignment through REST.';
-            $report['limitations'][] = 'Media upload is not implemented in this package slice; media record pull and explicit file download are supported.';
+            $report['limitations'][] = 'Media upload uses the SDK media upload endpoint; accepted metadata fields depend on WordPress REST permissions and runtime support.';
         } catch (\Throwable $exception) {
             $caught = $exception;
             $failures[] = ['name' => 'uncaught_exception', 'details' => [

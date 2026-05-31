@@ -12,6 +12,7 @@ This package is a Laravel service layer above `jooservices/wordpress-sdk`.
 - explicit pull/push sync state and conflict markers
 - media attachment record pull
 - explicit media file download into Laravel Storage
+- explicit media file upload to the WordPress Media Library through the SDK
 
 ## Out of Scope
 
@@ -21,6 +22,6 @@ This package is a Laravel service layer above `jooservices/wordpress-sdk`.
 - audit logs or sync history logs
 - background processing
 - UI
-- full media upload to WordPress
+- implicit/background media processing
 
 Host applications can build those layers above the package if needed.

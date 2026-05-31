@@ -17,7 +17,8 @@ architecture instead of implementing from prompts alone.
 Do not add web/API routes, controllers, FormRequests, API resources, jobs, queues, events,
 listeners, UI, audit logs, sync history, or background processing.
 
-Do not implement media upload unless explicitly requested.
+Keep media upload in the explicit file-transfer service. Do not make record push/sync helpers
+pretend to upload bytes.
 
 ## Validation
 

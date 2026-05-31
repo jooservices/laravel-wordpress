@@ -20,8 +20,7 @@ WordPress facade
           SyncStateChecker
 ```
 
-Feature-level tested resources include posts, pages, media record pull, media file download, and
-dirty-local conflict detection. Generic resource definitions are available for broader remote,
-local, and sync operations, but not every definition has resource-specific feature coverage.
-
-Media upload to WordPress is not implemented.
+Feature-level tested resources include posts, pages, media record pull, media file download, media
+file upload service boundaries, and dirty-local conflict detection. Generic resource definitions
+are available for broader remote, local, and sync operations, but not every definition has
+resource-specific feature coverage.

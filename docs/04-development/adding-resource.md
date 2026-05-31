@@ -30,4 +30,5 @@ an author, but a real WordPress site can still assign the authenticated user ins
 
 Custom meta requires the WordPress site to register keys with `show_in_rest=true`.
 
-Media file upload is unsupported unless explicitly added as a separate feature.
+Media file upload belongs in `MediaFileService`; do not implement byte transfer inside a resource
+definition or record sync helper.

@@ -10,7 +10,8 @@ surface area.
   state, and explicit media file copies.
 - Do not add web routes, API routes, controllers, FormRequests, API resources, jobs, queues,
   events, listeners, audit logs, sync history, background workers, or UI.
-- Do not implement media upload unless the user explicitly asks for that feature.
+- Keep media upload byte-transfer behavior in `MediaFileService`; do not route it through record
+  sync helpers.
 - Keep models thin. Put local database access and coordination in repositories or services.
 
 ## Architecture
@@ -57,12 +58,12 @@ WordPress facade -> Manager -> SiteContext -> grouped service -> ResourceService
 
 ## Media Lifecycle
 
-- `media()->pull()` pulls WordPress attachment records and source URLs.
-- `media()->downloadFile($media)` copies remote bytes into Laravel Storage and records local file
+- `media()->records()->pull()` pulls WordPress attachment records and source URLs.
+- `media()->files()->download($media)` copies remote bytes into Laravel Storage and records local file
   state.
-- `media()->deleteLocalFile($media)` removes only the local copied file.
-- Full media byte upload to WordPress is not implemented. Do not document or build it as
-  supported without an explicit feature request.
+- `media()->files()->upload($data)` uploads real bytes to the WordPress Media Library and persists
+  the returned attachment record locally.
+- `media()->files()->deleteLocal($media)` removes only the local copied file.
 
 ## WordPress REST Limits
 

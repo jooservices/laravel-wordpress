@@ -33,6 +33,13 @@ final class MediaStorage
             throw new WordPressException('Media file exceeds configured maximum size.');
         }
 
+        $mimeType = $response->header('Content-Type');
+        $mimeType = is_string($mimeType) ? trim(explode(';', $mimeType)[0]) : null;
+        $allowed = config('wordpress.media.allowed_mime_types', []);
+        if ($mimeType !== null && is_array($allowed) && $allowed !== [] && ! in_array($mimeType, $allowed, true)) {
+            throw new WordPressException('Media file MIME type is not allowed.');
+        }
+
         $disk ??= (string) config('wordpress.media.disk', 'local');
         $path = $this->pathFor($media);
         $this->disk($disk)->put($path, $contents);
@@ -42,6 +49,7 @@ final class MediaStorage
             'local_path' => $path,
             'file_name' => basename($path),
             'file_size' => strlen($contents),
+            'mime_type' => $mimeType ?? $media->mime_type,
             'checksum' => hash('sha256', $contents),
             'file_hash' => hash('sha256', $contents),
             'file_sync_status' => FileSyncStatus::Synced,

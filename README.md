@@ -39,7 +39,8 @@ WordPress::credentials()->createForSite($site, new CredentialCreateData(
 
 WordPress::site($site)->users()->users()->pull();
 WordPress::site($site)->content()->posts()->pull();
-WordPress::site($site)->media()->downloadFile($media);
+WordPress::site($site)->media()->records()->pull();
+WordPress::site($site)->media()->files()->download($media);
 ```
 
 ## Architecture Overview
@@ -63,7 +64,8 @@ tables, Eloquent models, remote SDK services, and payload mapping. Details are i
 | `WordPress::sites()` | Site records |
 | `WordPress::credentials()` | Site credentials |
 | `WordPress::site($site)->content()` | Posts, pages, revisions, autosaves |
-| `WordPress::site($site)->media()` | Media attachment records and explicit local file copies |
+| `WordPress::site($site)->media()->records()` | Media attachment record local/remote CRUD and record sync |
+| `WordPress::site($site)->media()->files()` | Media file upload, download, and local file deletion |
 | `WordPress::site($site)->taxonomy()` | Taxonomies and terms |
 | `WordPress::site($site)->users()` | Users |
 | `WordPress::site($site)->applicationPasswords()` | Application passwords |
@@ -81,7 +83,7 @@ tables, Eloquent models, remote SDK services, and payload mapping. Details are i
 | Posts and pages | Feature-level tested for pull, local create/update, push, taxonomy IDs, featured media, unpublish, trash reflection, and conflict detection |
 | Media records | Feature-level tested for attachment record pull and source URL persistence |
 | Media file download | Feature-level tested through explicit `downloadFile()` local byte copy |
-| Media upload | Unsupported; full WordPress file upload is not implemented |
+| Media upload | Supported through `media()->files()->upload(...)` / `uploadFile(...)` using `jooservices/wordpress-sdk` real Media Library upload |
 | Generic resource tables and definitions | Available for remote/local/sync operations through the shared resource layer, but not all are feature-complete |
 | Author assignment | Runtime-dependent; WordPress REST permissions can override requested authors |
 | Custom REST meta | Runtime-dependent; keys must be registered in WordPress with `show_in_rest=true` |
@@ -107,10 +109,11 @@ resolution is intentionally used. Use:
 
 ## Media Lifecycle
 
-`media()->pull()` stores attachment records and source URLs. `media()->downloadFile($media)`
-copies remote bytes into Laravel Storage. `media()->deleteLocalFile($media)` deletes only the
-local copied file. Physical files are never deleted as a side effect of record sync. Media upload
-to WordPress is not implemented.
+`media()->records()->pull()` stores attachment records and source URLs. `media()->files()->download($media)`
+copies remote bytes into Laravel Storage. `media()->files()->upload($data)` sends file bytes to
+the WordPress Media Library and persists the returned attachment record locally.
+`media()->files()->deleteLocal($media)` deletes only the local copied file. Physical files are
+never deleted as a side effect of record sync.
 
 See [media files](docs/02-user-guide/media-files.md).
 
@@ -173,7 +176,8 @@ See [Docker WordPress testing](docs/04-development/docker-wordpress.md).
 
 ## Known Limitations
 
-- Media upload to WordPress is not implemented.
+- Media upload uses the SDK's Media Library upload endpoint; field acceptance still depends on
+  WordPress runtime permissions and REST support.
 - Posts/pages have feature-level coverage; many generic resource definitions are available
   through shared services but are not all feature-complete.
 - Author assignment depends on runtime WordPress REST permissions and configuration.
