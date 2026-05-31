@@ -35,7 +35,7 @@ WordPress::site($site)->content()->posts()->pull();
 WordPress::site($site)->media()->downloadFile($media);
 ```
 
-Grouped services expose resources through `ResourceDefinition` adapters. Posts and pages have feature-level REST payload mapping for title, content, excerpt, slug, status, author, featured media, and registered REST meta; posts also map category and tag IDs. The sync layer never auto-merges conflicts and never deletes physical files unless `deleteLocalFile()` is called.
+Grouped services expose resources through `ResourceDefinition` adapters. Posts and pages have feature-level REST payload mapping for title, content, excerpt, slug, status, author, featured media, and registered REST meta; posts also map category and tag IDs. Author is payload-supported, but actual author assignment depends on WordPress REST permissions and runtime configuration. The sync layer never auto-merges conflicts and never deletes physical files unless `deleteLocalFile()` is called.
 
 ## Testing
 
@@ -61,7 +61,7 @@ Prerequisites: Docker and Docker Compose.
 ./scripts/test-docker.sh
 ```
 
-The workflow validates package discovery, config loading, package migrations, WP-CLI availability, WordPress installation, real WordPress post/media generation, WordPress-to-Laravel pull sync, media record pull, explicit media file download, update handling, idempotent repeated pull behavior, Laravel-originated post create/update push, Laravel-originated page create push, taxonomy assignment, featured media assignment, unpublish, and trash behavior. It writes:
+The workflow validates package discovery, config loading, package migrations, WP-CLI availability, WordPress installation, real WordPress post/media generation, WordPress-to-Laravel pull sync, media record pull, explicit media file download, update handling, idempotent repeated pull behavior, Laravel-originated post create/update push through DTOs, Laravel-originated page create push through DTOs, taxonomy assignment, featured media assignment, unpublish, trash behavior with local reflection, and dirty-local conflict detection against a real remote change. It writes:
 
 ```text
 artifacts/integration-report.json
@@ -71,7 +71,7 @@ artifacts/junit.xml
 
 The JSON report includes environment versions, executed paths/commands, package capabilities, schema audit notes, WordPress record counts, Laravel record counts, media record/file evidence, pull/push/idempotency results, assertions, skipped assertions, failures, and limitations. Media is reported in three separate buckets: WordPress attachments, Laravel media records, and local copied files. `media()->pull()` stores attachment records and source URLs; local bytes are copied only when `downloadFile()` is called.
 
-Post/page push uses resource-specific payload mapping instead of raw model attributes. Custom meta support is limited to WordPress meta keys registered with `show_in_rest=true`; default WordPress REST responses do not expose unregistered custom meta. Media upload is not currently implemented; media record pull and explicit file download are separate supported behaviors.
+Post/page push uses resource-specific payload mapping instead of raw model attributes. Pulled REST object fields such as `title.raw` or `title.rendered` are normalized before push so full REST objects are not sent back as editable content. The `author` field is included when provided, but the Docker runtime does not assert explicit author assignment when WordPress rejects it; WordPress may assign the authenticated user by default. Custom meta support is limited to WordPress meta keys registered with `show_in_rest=true`; default WordPress REST responses do not expose unregistered custom meta. Media upload is not currently implemented; media record pull and explicit file download are separate supported behaviors.
 
 The package migration includes nullable common REST columns (`title`, `name`, `slug`, `status`, `type`, `link`, `description`, `content`, `excerpt`, `author`, `categories`, `tags`, `featured_media`, `meta`) on generic resource tables because resource definitions extract those fields from real WordPress REST payloads and `ResourceSyncService` fills them during synchronization. `media_items` also includes generic record sync columns used by the shared sync service, while existing media file sync columns continue to represent physical file copy state.
 

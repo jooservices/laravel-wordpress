@@ -51,6 +51,7 @@ final class RemoteClientFactory
             ->withTimeout($config->http->timeout)
             ->withConnectTimeout($config->http->connectTimeout)
             ->withOption('base_uri', $config->baseUrl)
+            ->withOption('auth', [$config->auth->username, $config->auth->password])
             ->withOption('retries', $config->http->maxRetries)
             ->withHeader('Accept', 'application/json')
             ->withHeader('Authorization', $authorization)

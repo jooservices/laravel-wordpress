@@ -43,6 +43,13 @@ wp core install --path="$WORDPRESS_PATH" --url="$WORDPRESS_URL" --title="Laravel
 admin_id="$(wp user get "$WORDPRESS_ADMIN_USER" --field=ID --path="$WORDPRESS_PATH" --allow-root | numeric_id)"
 require_id admin "$admin_id"
 
+mkdir -p "$WORDPRESS_PATH/wp-content/mu-plugins"
+cat > "$WORDPRESS_PATH/wp-content/mu-plugins/laravel-wordpress-test-auth.php" <<'PHP'
+<?php
+
+add_filter('wp_is_application_passwords_available', '__return_true');
+PHP
+
 wp rewrite structure '/%postname%/' --path="$WORDPRESS_PATH" --hard --allow-root
 wp rewrite flush --path="$WORDPRESS_PATH" --hard --allow-root
 wp post delete 1 --force --path="$WORDPRESS_PATH" --allow-root >/dev/null 2>&1 || true

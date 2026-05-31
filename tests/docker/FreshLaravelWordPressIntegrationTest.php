@@ -9,9 +9,14 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Jooservices\LaravelWordPress\DTOs\Content\PageCreateData;
+use Jooservices\LaravelWordPress\DTOs\Content\PostCreateData;
+use Jooservices\LaravelWordPress\DTOs\Content\PostUpdateData;
 use Jooservices\LaravelWordPress\DTOs\Credentials\CredentialCreateData;
+use Jooservices\LaravelWordPress\DTOs\Shared\SyncConflict;
 use Jooservices\LaravelWordPress\DTOs\Sites\SiteCreateData;
 use Jooservices\LaravelWordPress\Enums\AuthType;
+use Jooservices\LaravelWordPress\Enums\SyncStatus;
 use Jooservices\LaravelWordPress\Facades\WordPress;
 use Jooservices\LaravelWordPress\Models\MediaItem;
 use Jooservices\LaravelWordPress\Models\Page;
@@ -40,7 +45,7 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
                 name: 'Docker',
                 authType: AuthType::ApplicationPassword,
                 username: getenv('WORDPRESS_ADMIN_USER') ?: 'admin',
-                secret: trim((string) file_get_contents('/tmp/laravel-wordpress-app-password')),
+                secret: preg_replace('/\s+/', '', (string) file_get_contents('/tmp/laravel-wordpress-app-password')),
             ));
 
             $seed = $this->wordpressSeed();
@@ -146,17 +151,17 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
                 'actual_tags' => $updatedTags,
             ]);
 
-            $pushedPost = WordPress::site($site)->content()->posts()->createLocal([
-                'title' => 'Laravel Created Docker Post',
-                'content' => '<p>Created from Laravel package integration.</p>',
-                'excerpt' => 'Laravel-created excerpt.',
-                'slug' => 'laravel-created-docker-post',
-                'status' => 'draft',
-                'categories' => [$seed['WORDPRESS_SEED_CATEGORY_ID']],
-                'tags' => [$seed['WORDPRESS_SEED_TAG_ID']],
-                'featured_media' => $seed['WORDPRESS_SEED_FEATURED_MEDIA_ID'],
-            ]);
-            $pushedPost = WordPress::site($site)->content()->posts()->push($pushedPost);
+            $pushedPost = WordPress::site($site)->content()->createPost(new PostCreateData(
+                title: 'Laravel Created Docker Post',
+                content: '<p>Created from Laravel package integration.</p>',
+                excerpt: 'Laravel-created excerpt.',
+                slug: 'laravel-created-docker-post',
+                status: 'draft',
+                author: $seed['WORDPRESS_ADMIN_ID'],
+                categories: [$seed['WORDPRESS_SEED_CATEGORY_ID']],
+                tags: [$seed['WORDPRESS_SEED_TAG_ID']],
+                featuredMedia: $seed['WORDPRESS_SEED_FEATURED_MEDIA_ID'],
+            ), push: true);
             $pushedPostId = (int) $pushedPost->remote_id;
             $this->assertAndRecord($report, $failures, 'laravel_created_post_pushed_to_wordpress', $pushedPostId > 0 && $this->wpPostField($pushedPostId, 'post_name') === 'laravel-created-docker-post', [
                 'local_id' => $pushedPost->getKey(),
@@ -172,17 +177,15 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
                 'actual_featured_media_id' => $this->wpPostMeta($pushedPostId, '_thumbnail_id'),
             ]);
 
-            $pushedPost->fill([
-                'title' => 'Laravel Updated Docker Post',
-                'content' => '<p>Updated from Laravel package integration.</p>',
-                'excerpt' => 'Laravel-updated excerpt.',
-                'slug' => 'laravel-updated-docker-post',
-                'status' => 'private',
-                'categories' => [$seed['WORDPRESS_SEED_SECONDARY_CATEGORY_ID']],
-                'tags' => [$seed['WORDPRESS_SEED_SECONDARY_TAG_ID']],
-            ]);
-            $pushedPost->save();
-            $pushedPost = WordPress::site($site)->content()->posts()->push($pushedPost, force: true);
+            $pushedPost = WordPress::site($site)->content()->updatePost($pushedPost, new PostUpdateData(
+                title: 'Laravel Updated Docker Post',
+                content: '<p>Updated from Laravel package integration.</p>',
+                excerpt: 'Laravel-updated excerpt.',
+                slug: 'laravel-updated-docker-post',
+                status: 'private',
+                categories: [$seed['WORDPRESS_SEED_SECONDARY_CATEGORY_ID']],
+                tags: [$seed['WORDPRESS_SEED_SECONDARY_TAG_ID']],
+            ), push: true, force: true);
             $this->assertAndRecord($report, $failures, 'laravel_updated_post_pushed_to_wordpress', $this->wpPostField($pushedPostId, 'post_title') === 'Laravel Updated Docker Post' && $this->wpPostField($pushedPostId, 'post_status') === 'private' && $this->wpPostField($pushedPostId, 'post_name') === 'laravel-updated-docker-post', [
                 'local_id' => $pushedPost->getKey(),
                 'remote_id' => $pushedPostId,
@@ -191,15 +194,15 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
                 'remote_slug' => $this->wpPostField($pushedPostId, 'post_name'),
             ]);
 
-            $pushedPage = WordPress::site($site)->content()->pages()->createLocal([
-                'title' => 'Laravel Created Docker Page',
-                'content' => '<p>Created page from Laravel package integration.</p>',
-                'excerpt' => 'Laravel-created page excerpt.',
-                'slug' => 'laravel-created-docker-page',
-                'status' => 'draft',
-                'featured_media' => $seed['WORDPRESS_SEED_FEATURED_MEDIA_ID'],
-            ]);
-            $pushedPage = WordPress::site($site)->content()->pages()->push($pushedPage);
+            $pushedPage = WordPress::site($site)->content()->createPage(new PageCreateData(
+                title: 'Laravel Created Docker Page',
+                content: '<p>Created page from Laravel package integration.</p>',
+                excerpt: 'Laravel-created page excerpt.',
+                slug: 'laravel-created-docker-page',
+                status: 'draft',
+                author: $seed['WORDPRESS_ADMIN_ID'],
+                featuredMedia: $seed['WORDPRESS_SEED_FEATURED_MEDIA_ID'],
+            ), push: true);
             $pushedPageId = (int) $pushedPage->remote_id;
             $this->assertAndRecord($report, $failures, 'laravel_created_page_pushed_to_wordpress', $pushedPageId > 0 && $this->wpPostField($pushedPageId, 'post_type') === 'page' && $this->wpPostField($pushedPageId, 'post_name') === 'laravel-created-docker-page', [
                 'local_id' => $pushedPage->getKey(),
@@ -221,6 +224,36 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
                 'remote_id' => $pushedPostId,
                 'remote_status' => $trashedPayload['status'] ?? null,
             ]);
+            WordPress::site($site)->content()->posts()->pullOne($pushedPostId);
+            $this->assertAndRecord($report, $failures, 'remote_trash_reflected_locally_after_pull', Post::query()->where('remote_id', $pushedPostId)->value('status') === 'trash', [
+                'remote_id' => $pushedPostId,
+                'local_status' => Post::query()->where('remote_id', $pushedPostId)->value('status'),
+            ]);
+
+            $conflictLocalContent = '<p>Local dirty content must survive conflict detection.</p>';
+            $secondary->fill([
+                'content' => $conflictLocalContent,
+                'sync_status' => SyncStatus::Dirty,
+            ]);
+            $secondary->save();
+            shell_exec('wp post update '.$seed['WORDPRESS_SEED_SECONDARY_POST_ID'].' --post_title='.escapeshellarg('Docker Integration Remote Conflict Title').' --post_content='.escapeshellarg('<p>Remote conflicting content.</p>').' --path='.escapeshellarg($this->wordpressPath()).' --allow-root');
+
+            $conflict = WordPress::site($site)->content()->posts()->pullOne($seed['WORDPRESS_SEED_SECONDARY_POST_ID']);
+            $secondary->refresh();
+            $this->assertAndRecord($report, $failures, 'dirty_local_pull_returns_conflict', $conflict instanceof SyncConflict, [
+                'result_class' => is_object($conflict) ? $conflict::class : gettype($conflict),
+            ]);
+            $this->assertAndRecord($report, $failures, 'dirty_local_content_not_overwritten_by_conflict', $secondary->content === $conflictLocalContent, [
+                'local_id' => $secondary->getKey(),
+                'remote_id' => $secondary->remote_id,
+                'local_content' => $secondary->content,
+            ]);
+            $this->assertAndRecord($report, $failures, 'dirty_local_conflict_status_and_payload_recorded', $secondary->sync_status === SyncStatus::Conflict && $secondary->conflicted_at !== null && data_get($secondary->conflict_payload, 'remote_id') === $seed['WORDPRESS_SEED_SECONDARY_POST_ID'] && data_get($secondary->conflict_payload, 'title.rendered') === 'Docker Integration Remote Conflict Title', [
+                'local_sync_status' => $secondary->sync_status?->value,
+                'conflicted_at' => optional($secondary->conflicted_at)->toIso8601String(),
+                'conflict_remote_id' => data_get($secondary->conflict_payload, 'remote_id'),
+                'conflict_title' => data_get($secondary->conflict_payload, 'title.rendered'),
+            ]);
 
             $report['sync'] = [
                 'pull' => [
@@ -239,7 +272,23 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
                     'initial_media_processed' => $mediaPullResult->processed,
                     'initial_media_succeeded' => $mediaPullResult->succeeded,
                     'updated' => 1,
-                    'deleted_or_unpublished' => 0,
+                    'status_changes' => [
+                        'unpublish_tested' => ! $this->hasFailed($report, ['remote_unpublish_reflected_locally']),
+                        'trash_tested' => ! $this->hasFailed($report, ['remote_trash_supported_without_force_delete']),
+                        'local_reflection_tested' => ! $this->hasFailed($report, ['remote_trash_reflected_locally_after_pull']),
+                        'force_delete_tested' => false,
+                        'force_delete_note' => 'Not exercised by Docker; deleteRemote(..., force: true) remains an explicit caller choice.',
+                    ],
+                    'deleted_or_unpublished' => 2,
+                    'conflict_evidence' => [
+                        'tested' => true,
+                        'passed' => ! $this->hasFailed($report, [
+                            'dirty_local_pull_returns_conflict',
+                            'dirty_local_content_not_overwritten_by_conflict',
+                            'dirty_local_conflict_status_and_payload_recorded',
+                        ]),
+                        'remote_id' => $seed['WORDPRESS_SEED_SECONDARY_POST_ID'],
+                    ],
                     'mismatches' => $this->failedAssertions($report),
                 ],
                 'push' => $this->pushCapabilityReport($pushedPost, $pushedPage),
