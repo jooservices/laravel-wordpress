@@ -1,0 +1,70 @@
+{
+    "name": "jooservices/laravel-wordpress",
+    "description": "Laravel service package for WordPress local/remote CRUD, sync, and media/file management.",
+    "type": "library",
+    "license": "MIT",
+    "require": {
+        "php": "^8.5",
+        "illuminate/support": "^12.0",
+        "illuminate/database": "^12.0",
+        "illuminate/filesystem": "^12.0",
+        "illuminate/http": "^12.0",
+        "jooservices/dto": "^1.0",
+        "jooservices/laravel-repository": "^1.0",
+        "jooservices/wordpress-sdk": "^1.2"
+    },
+    "require-dev": {
+        "fakerphp/faker": "^1.23",
+        "laravel/pint": "^1.24",
+        "orchestra/testbench": "^10.0",
+        "phpunit/phpunit": "^11.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Jooservices\\LaravelWordPress\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Jooservices\\LaravelWordPress\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Jooservices\\LaravelWordPress\\LaravelWordPressServiceProvider"
+            ]
+        }
+    },
+    "scripts": {
+        "lint": "pint --test",
+        "format": "pint",
+        "test": "phpunit",
+        "test:unit": "phpunit --testsuite=Unit",
+        "test:feature": "phpunit --testsuite=Feature",
+        "test:integration": "phpunit --testsuite=Integration",
+        "wp:test:up": "bash scripts/wp-test/up.sh",
+        "wp:test:reset": "bash scripts/wp-test/reset.sh",
+        "wp:test:down": "bash scripts/wp-test/down.sh",
+        "wp:test:run": "bash scripts/wp-test/run.sh",
+        "test:real": [
+            "@wp:test:up",
+            "@wp:test:reset",
+            "@wp:test:run"
+        ],
+        "quality": [
+            "composer validate --strict",
+            "composer lint",
+            "composer test"
+        ]
+    },
+    "config": {
+        "sort-packages": true,
+        "preferred-install": "dist",
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

@@ -1,0 +1,49 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/test/Dockerfile
+    working_dir: /package
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: laravel_wordpress_test
+      DB_USERNAME: wordpress
+      DB_PASSWORD: wordpress
+      DB_ROOT_PASSWORD: wordpress
+      LARAVEL_DB_DATABASE: laravel_wordpress_test
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: wordpress
+      WORDPRESS_DB_HOST: db:3306
+      WORDPRESS_PATH: /work/wordpress
+      WORDPRESS_URL: http://127.0.0.1:8080
+      WORDPRESS_ADMIN_USER: admin
+      WORDPRESS_ADMIN_PASSWORD: password
+      WORDPRESS_ADMIN_EMAIL: admin@example.com
+      LARAVEL_APP_PATH: /work/laravel-app
+      PACKAGE_PATH: /package
+      INTEGRATION_REPORT_PATH: /package/artifacts/integration-report.json
+      INTEGRATION_SUMMARY_PATH: /package/artifacts/integration-summary.txt
+    volumes:
+      - .:/package
+      - test-work:/work
+
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wordpress
+      MARIADB_PASSWORD: wordpress
+      MARIADB_ROOT_PASSWORD: wordpress
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 24
+
+volumes:
+  test-work:

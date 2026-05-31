@@ -1,0 +1,33 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  unit-feature:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+      - run: composer validate --strict
+      - run: composer install --no-interaction --prefer-dist
+      - run: composer lint
+      - run: composer test:unit
+      - run: composer test:feature
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+      - run: composer install --no-interaction --prefer-dist
+      - run: bash scripts/wp-test/up.sh
+      - run: bash scripts/wp-test/reset.sh
+      - run: bash scripts/wp-test/run.sh
+      - if: always()
+        run: bash scripts/wp-test/down.sh
