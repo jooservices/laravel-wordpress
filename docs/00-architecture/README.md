@@ -1,0 +1,3 @@
+# README
+
+Architecture overview.

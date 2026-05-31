@@ -9,8 +9,8 @@
         "illuminate/database": "^12.0",
         "illuminate/filesystem": "^12.0",
         "illuminate/http": "^12.0",
-        "jooservices/dto": "*",
-        "jooservices/laravel-repository": "*",
+        "jooservices/dto": "^1.0",
+        "jooservices/laravel-repository": "^1.0",
         "jooservices/wordpress-sdk": "^1.2"
     },
     "require-dev": {
@@ -50,7 +50,7 @@
         "test:real": [
             "@wp:test:up",
             "@wp:test:reset",
-            "@test:integration"
+            "@wp:test:run"
         ],
         "quality": [
             "composer validate --strict",
