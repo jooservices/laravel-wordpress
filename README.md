@@ -61,7 +61,7 @@ Prerequisites: Docker and Docker Compose.
 ./scripts/test-docker.sh
 ```
 
-The workflow validates package discovery, config loading, package migrations, WP-CLI availability, WordPress installation, real WordPress post/media generation, WordPress-to-Laravel pull sync, media record pull and file download, update handling, and idempotent repeated pull behavior. It writes:
+The workflow validates package discovery, config loading, package migrations, WP-CLI availability, WordPress installation, real WordPress post/media generation, WordPress-to-Laravel pull sync, media record pull, explicit media file download, update handling, and idempotent repeated pull behavior. It writes:
 
 ```text
 artifacts/integration-report.json
@@ -69,6 +69,10 @@ artifacts/integration-summary.txt
 artifacts/junit.xml
 ```
 
-The JSON report includes environment versions, package capabilities, WordPress record counts, Laravel record counts, media file checks, pull/push/idempotency results, assertions, failures, and limitations. Push services exist in the package, but the Docker smoke suite currently reports push as untested because post-specific Laravel-originated mapping for author, taxonomy, meta, featured media, and rendered content is not represented by a dedicated DTO.
+The JSON report includes environment versions, executed paths/commands, package capabilities, schema audit notes, WordPress record counts, Laravel record counts, media record/file evidence, pull/push/idempotency results, assertions, skipped assertions, failures, and limitations. Media is reported in three separate buckets: WordPress attachments, Laravel media records, and local copied files. `media()->pull()` stores attachment records and source URLs; local bytes are copied only when `downloadFile()` is called.
+
+Push services exist as generic infrastructure through `ResourceService`, but the Docker suite reports post push as partial and untested at the feature level. It does not claim Laravel-originated post push support until a post-specific DTO/mapper proves author, taxonomy, custom meta, featured media, and rendered content semantics against real WordPress.
+
+The package migration includes nullable common REST columns (`title`, `name`, `slug`, `status`, `type`, `link`, `description`, `content`, `excerpt`, `meta`) on generic resource tables because `BaseResourceDefinition` extracts those fields from real WordPress REST payloads and `ResourceSyncService` fills them during synchronization. `media_items` also includes generic record sync columns used by the shared sync service, while existing media file sync columns continue to represent physical file copy state.
 
 Useful defaults can be overridden with environment variables such as `DB_HOST`, `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `WORDPRESS_PATH`, `WORDPRESS_URL`, `LARAVEL_APP_PATH`, and `PACKAGE_PATH`. If the run fails, inspect `artifacts/integration-report.json`, `artifacts/integration-summary.txt`, and the Docker output; the WordPress PHP server log is written inside the app container at `/tmp/wordpress-test-server.log`.

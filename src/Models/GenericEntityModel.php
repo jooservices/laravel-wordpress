@@ -10,6 +10,10 @@ use Jooservices\LaravelWordPress\Enums\SyncStatus;
 abstract class GenericEntityModel extends BaseModel
 {
     protected $casts = [
+        'title' => 'array',
+        'content' => 'array',
+        'excerpt' => 'array',
+        'meta' => 'array',
         'synced_at' => 'datetime',
         'last_pulled_at' => 'datetime',
         'last_pushed_at' => 'datetime',

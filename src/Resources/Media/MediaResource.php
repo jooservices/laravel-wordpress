@@ -27,10 +27,10 @@ final class MediaResource extends BaseResourceDefinition
             'type' => $payload['type'] ?? null,
             'guid' => $payload['guid'] ?? null,
             'link' => $payload['link'] ?? null,
-            'title' => $payload['title'] ?? null,
-            'caption' => $payload['caption'] ?? null,
+            'title' => $this->renderedText($payload['title'] ?? null),
+            'caption' => $this->renderedText($payload['caption'] ?? null),
             'alt_text' => $payload['alt_text'] ?? null,
-            'description' => $payload['description'] ?? null,
+            'description' => $this->renderedText($payload['description'] ?? null),
             'author_remote_id' => $payload['author'] ?? null,
             'post_remote_id' => $payload['post'] ?? null,
             'media_type' => $payload['media_type'] ?? null,
@@ -54,5 +54,14 @@ final class MediaResource extends BaseResourceDefinition
         unset($data['local_disk'], $data['local_path'], $data['file_name'], $data['file_size'], $data['checksum']);
 
         return $data;
+    }
+
+    private function renderedText(mixed $value): ?string
+    {
+        if (is_array($value)) {
+            $value = $value['rendered'] ?? $value['raw'] ?? null;
+        }
+
+        return $value === null ? null : (string) $value;
     }
 }

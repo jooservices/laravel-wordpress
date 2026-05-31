@@ -7,6 +7,7 @@ namespace Jooservices\LaravelWordPress\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Jooservices\LaravelWordPress\Enums\FileSyncStatus;
 use Jooservices\LaravelWordPress\Enums\RecordSyncStatus;
+use Jooservices\LaravelWordPress\Enums\SyncStatus;
 
 final class MediaItem extends BaseModel
 {
@@ -21,6 +22,12 @@ final class MediaItem extends BaseModel
         'date_gmt' => 'datetime',
         'modified' => 'datetime',
         'modified_gmt' => 'datetime',
+        'sync_status' => SyncStatus::class,
+        'synced_at' => 'datetime',
+        'last_pulled_at' => 'datetime',
+        'last_pushed_at' => 'datetime',
+        'conflict_payload' => 'array',
+        'conflicted_at' => 'datetime',
         'record_sync_status' => RecordSyncStatus::class,
         'record_synced_at' => 'datetime',
         'last_record_pulled_at' => 'datetime',
