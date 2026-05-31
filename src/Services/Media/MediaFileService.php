@@ -36,6 +36,8 @@ final class MediaFileService
     {
         $source = $this->resolveSourcePath($data);
         $fileSize = $this->fileSize($source);
+        $this->ensureAllowedFileSize($fileSize);
+
         $fileHash = hash_file('sha256', $source);
 
         if ($fileHash === false) {
@@ -135,6 +137,15 @@ final class MediaFileService
         return $size;
     }
 
+    private function ensureAllowedFileSize(int $fileSize): void
+    {
+        $max = (int) config('wordpress.media.max_file_size', 50 * 1024 * 1024);
+
+        if ($max > 0 && $fileSize > $max) {
+            throw new WordPressException("Media upload source file exceeds maximum size of {$max} bytes.");
+        }
+    }
+
     private function mimeType(MediaUploadData $data, string $source): ?string
     {
         if ($data->mimeType !== null) {
@@ -150,7 +161,15 @@ final class MediaFileService
     {
         $allowed = config('wordpress.media.allowed_mime_types', []);
 
-        if ($mimeType === null || $allowed === [] || in_array($mimeType, $allowed, true)) {
+        if ($allowed === []) {
+            return;
+        }
+
+        if ($mimeType === null || trim($mimeType) === '') {
+            throw new WordPressException('Media upload MIME type could not be detected.');
+        }
+
+        if (in_array($mimeType, $allowed, true)) {
             return;
         }
 

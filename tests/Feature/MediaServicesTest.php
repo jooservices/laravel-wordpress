@@ -2,6 +2,17 @@
 
 declare(strict_types=1);
 
+namespace Jooservices\LaravelWordPress\Services\Media;
+
+function mime_content_type(string $filename): string|false
+{
+    if (str_contains($filename, 'media-unknown-mime-')) {
+        return false;
+    }
+
+    return \mime_content_type($filename);
+}
+
 namespace Jooservices\LaravelWordPress\Tests\Feature;
 
 use Illuminate\Support\Facades\Http;
@@ -9,6 +20,7 @@ use Illuminate\Support\Facades\Storage;
 use Jooservices\LaravelWordPress\DTOs\Media\MediaUploadData;
 use Jooservices\LaravelWordPress\DTOs\Sites\SiteCreateData;
 use Jooservices\LaravelWordPress\Enums\FileSyncStatus;
+use Jooservices\LaravelWordPress\Exceptions\RemoteNotConfiguredException;
 use Jooservices\LaravelWordPress\Exceptions\WordPressException;
 use Jooservices\LaravelWordPress\Facades\WordPress;
 use Jooservices\LaravelWordPress\Models\MediaItem;
@@ -180,6 +192,27 @@ final class MediaServicesTest extends TestCase
         }
     }
 
+    public function test_media_file_upload_rejects_files_larger_than_configured_max_size(): void
+    {
+        config()->set('wordpress.media.max_file_size', 4);
+
+        $site = WordPress::sites()->create(new SiteCreateData('Media', 'https://example.com'));
+        $path = tempnam(sys_get_temp_dir(), 'media-large-');
+        file_put_contents($path, 'larger than four bytes');
+
+        try {
+            $this->expectException(WordPressException::class);
+            $this->expectExceptionMessage('exceeds maximum size');
+
+            WordPress::site($site)->media()->files()->upload(new MediaUploadData(
+                path: $path,
+                mimeType: 'text/plain',
+            ));
+        } finally {
+            unlink($path);
+        }
+    }
+
     public function test_media_file_upload_validates_disallowed_mime_type(): void
     {
         $site = WordPress::sites()->create(new SiteCreateData('Media', 'https://example.com'));
@@ -193,6 +226,44 @@ final class MediaServicesTest extends TestCase
             WordPress::site($site)->media()->files()->upload(new MediaUploadData(
                 path: $path,
                 mimeType: 'application/x-not-allowed',
+            ));
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function test_media_file_upload_rejects_unknown_mime_type_when_allow_list_is_configured(): void
+    {
+        config()->set('wordpress.media.allowed_mime_types', ['image/png']);
+
+        $site = WordPress::sites()->create(new SiteCreateData('Media', 'https://example.com'));
+        $path = tempnam(sys_get_temp_dir(), 'media-unknown-mime-');
+        file_put_contents($path, 'not an image');
+
+        try {
+            $this->expectException(WordPressException::class);
+            $this->expectExceptionMessage('could not be detected');
+
+            WordPress::site($site)->media()->files()->upload(new MediaUploadData(path: $path));
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function test_media_file_upload_accepts_allowed_mime_type_before_remote_upload(): void
+    {
+        config()->set('wordpress.media.allowed_mime_types', ['text/plain']);
+
+        $site = WordPress::sites()->create(new SiteCreateData('Media', 'https://example.com'));
+        $path = tempnam(sys_get_temp_dir(), 'media-allowed-mime-');
+        file_put_contents($path, 'allowed text upload');
+
+        try {
+            $this->expectException(RemoteNotConfiguredException::class);
+
+            WordPress::site($site)->media()->files()->upload(new MediaUploadData(
+                path: $path,
+                mimeType: 'text/plain',
             ));
         } finally {
             unlink($path);

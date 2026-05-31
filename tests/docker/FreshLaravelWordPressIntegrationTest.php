@@ -120,6 +120,8 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
                 ]);
             }
 
+            config()->set('wordpress.media.allowed_mime_types', ['text/plain']);
+
             $uploadPath = sys_get_temp_dir().'/laravel-wordpress-upload.txt';
             File::put($uploadPath, 'Docker media upload '.bin2hex(random_bytes(8)));
             $uploadedMedia = WordPress::site($site)->media()->files()->upload(new MediaUploadData(
