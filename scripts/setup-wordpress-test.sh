@@ -40,6 +40,8 @@ mysql -h "$DB_HOST" -P "$DB_PORT" -u root -p"$DB_ROOT_PASSWORD" -e "DROP DATABAS
 wp core download --path="$WORDPRESS_PATH" --allow-root
 wp config create --path="$WORDPRESS_PATH" --dbname="$WORDPRESS_DB_NAME" --dbuser="$WORDPRESS_DB_USER" --dbpass="$WORDPRESS_DB_PASSWORD" --dbhost="$WORDPRESS_DB_HOST" --skip-check --allow-root
 wp core install --path="$WORDPRESS_PATH" --url="$WORDPRESS_URL" --title="Laravel WordPress Docker Test" --admin_user="$WORDPRESS_ADMIN_USER" --admin_password="$WORDPRESS_ADMIN_PASSWORD" --admin_email="$WORDPRESS_ADMIN_EMAIL" --skip-email --allow-root
+admin_id="$(wp user get "$WORDPRESS_ADMIN_USER" --field=ID --path="$WORDPRESS_PATH" --allow-root | numeric_id)"
+require_id admin "$admin_id"
 
 wp rewrite structure '/%postname%/' --path="$WORDPRESS_PATH" --hard --allow-root
 wp rewrite flush --path="$WORDPRESS_PATH" --hard --allow-root
@@ -54,6 +56,16 @@ $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $file = __DIR__.'/wordpress'.$path;
 if ($path !== false && is_file($file)) {
     return false;
+}
+
+if (! isset($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW'])) {
+    $authorization = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? null;
+    if (is_string($authorization) && str_starts_with($authorization, 'Basic ')) {
+        $decoded = base64_decode(substr($authorization, 6), true);
+        if (is_string($decoded) && str_contains($decoded, ':')) {
+            [$_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW']] = explode(':', $decoded, 2);
+        }
+    }
 }
 
 require __DIR__.'/wordpress/index.php';
@@ -116,6 +128,7 @@ wp post create --post_type=page --post_status=publish --post_title='Docker Integ
 
 cat > /tmp/wordpress-seed.env <<SEED
 WORDPRESS_SEED_AUTHOR_ID=$author_id
+WORDPRESS_ADMIN_ID=$admin_id
 WORDPRESS_SEED_CATEGORY_ID=$category_id
 WORDPRESS_SEED_SECONDARY_CATEGORY_ID=$secondary_category_id
 WORDPRESS_SEED_TAG_ID=$tag_id

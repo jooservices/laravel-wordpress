@@ -14,7 +14,9 @@ use Jooservices\LaravelWordPress\DTOs\Sites\SiteCreateData;
 use Jooservices\LaravelWordPress\Enums\AuthType;
 use Jooservices\LaravelWordPress\Facades\WordPress;
 use Jooservices\LaravelWordPress\Models\MediaItem;
+use Jooservices\LaravelWordPress\Models\Page;
 use Jooservices\LaravelWordPress\Models\Post;
+use Jooservices\LaravelWordPress\Resources\Content\PostResource;
 use Tests\TestCase;
 
 final class FreshLaravelWordPressIntegrationTest extends TestCase
@@ -25,6 +27,7 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
     {
         $report = $this->baseReport();
         $failures = [];
+        $caught = null;
 
         try {
             $this->assertAndRecord($report, $failures, 'wp_cli_installed', trim((string) shell_exec('command -v wp')) !== '');
@@ -143,6 +146,82 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
                 'actual_tags' => $updatedTags,
             ]);
 
+            $pushedPost = WordPress::site($site)->content()->posts()->createLocal([
+                'title' => 'Laravel Created Docker Post',
+                'content' => '<p>Created from Laravel package integration.</p>',
+                'excerpt' => 'Laravel-created excerpt.',
+                'slug' => 'laravel-created-docker-post',
+                'status' => 'draft',
+                'categories' => [$seed['WORDPRESS_SEED_CATEGORY_ID']],
+                'tags' => [$seed['WORDPRESS_SEED_TAG_ID']],
+                'featured_media' => $seed['WORDPRESS_SEED_FEATURED_MEDIA_ID'],
+            ]);
+            $pushedPost = WordPress::site($site)->content()->posts()->push($pushedPost);
+            $pushedPostId = (int) $pushedPost->remote_id;
+            $this->assertAndRecord($report, $failures, 'laravel_created_post_pushed_to_wordpress', $pushedPostId > 0 && $this->wpPostField($pushedPostId, 'post_name') === 'laravel-created-docker-post', [
+                'local_id' => $pushedPost->getKey(),
+                'remote_id' => $pushedPostId,
+                'remote_title' => $this->wpPostField($pushedPostId, 'post_title'),
+                'remote_status' => $this->wpPostField($pushedPostId, 'post_status'),
+            ]);
+            $this->assertAndRecord($report, $failures, 'laravel_created_post_taxonomy_and_featured_media_verified', $this->wpPostHasTerm($pushedPostId, 'category', 'integration-category') && $this->wpPostHasTerm($pushedPostId, 'post_tag', 'integration-tag') && (int) $this->wpPostMeta($pushedPostId, '_thumbnail_id') === $seed['WORDPRESS_SEED_FEATURED_MEDIA_ID'], [
+                'remote_id' => $pushedPostId,
+                'expected_category_id' => $seed['WORDPRESS_SEED_CATEGORY_ID'],
+                'expected_tag_id' => $seed['WORDPRESS_SEED_TAG_ID'],
+                'expected_featured_media_id' => $seed['WORDPRESS_SEED_FEATURED_MEDIA_ID'],
+                'actual_featured_media_id' => $this->wpPostMeta($pushedPostId, '_thumbnail_id'),
+            ]);
+
+            $pushedPost->fill([
+                'title' => 'Laravel Updated Docker Post',
+                'content' => '<p>Updated from Laravel package integration.</p>',
+                'excerpt' => 'Laravel-updated excerpt.',
+                'slug' => 'laravel-updated-docker-post',
+                'status' => 'private',
+                'categories' => [$seed['WORDPRESS_SEED_SECONDARY_CATEGORY_ID']],
+                'tags' => [$seed['WORDPRESS_SEED_SECONDARY_TAG_ID']],
+            ]);
+            $pushedPost->save();
+            $pushedPost = WordPress::site($site)->content()->posts()->push($pushedPost, force: true);
+            $this->assertAndRecord($report, $failures, 'laravel_updated_post_pushed_to_wordpress', $this->wpPostField($pushedPostId, 'post_title') === 'Laravel Updated Docker Post' && $this->wpPostField($pushedPostId, 'post_status') === 'private' && $this->wpPostField($pushedPostId, 'post_name') === 'laravel-updated-docker-post', [
+                'local_id' => $pushedPost->getKey(),
+                'remote_id' => $pushedPostId,
+                'remote_title' => $this->wpPostField($pushedPostId, 'post_title'),
+                'remote_status' => $this->wpPostField($pushedPostId, 'post_status'),
+                'remote_slug' => $this->wpPostField($pushedPostId, 'post_name'),
+            ]);
+
+            $pushedPage = WordPress::site($site)->content()->pages()->createLocal([
+                'title' => 'Laravel Created Docker Page',
+                'content' => '<p>Created page from Laravel package integration.</p>',
+                'excerpt' => 'Laravel-created page excerpt.',
+                'slug' => 'laravel-created-docker-page',
+                'status' => 'draft',
+                'featured_media' => $seed['WORDPRESS_SEED_FEATURED_MEDIA_ID'],
+            ]);
+            $pushedPage = WordPress::site($site)->content()->pages()->push($pushedPage);
+            $pushedPageId = (int) $pushedPage->remote_id;
+            $this->assertAndRecord($report, $failures, 'laravel_created_page_pushed_to_wordpress', $pushedPageId > 0 && $this->wpPostField($pushedPageId, 'post_type') === 'page' && $this->wpPostField($pushedPageId, 'post_name') === 'laravel-created-docker-page', [
+                'local_id' => $pushedPage->getKey(),
+                'remote_id' => $pushedPageId,
+                'remote_title' => $this->wpPostField($pushedPageId, 'post_title'),
+                'remote_status' => $this->wpPostField($pushedPageId, 'post_status'),
+            ]);
+
+            WordPress::site($site)->content()->posts()->updateRemote($pushedPostId, ['status' => 'draft']);
+            WordPress::site($site)->content()->posts()->pullOne($pushedPostId);
+            $this->assertAndRecord($report, $failures, 'remote_unpublish_reflected_locally', Post::query()->where('remote_id', $pushedPostId)->value('status') === 'draft', [
+                'remote_id' => $pushedPostId,
+                'local_status' => Post::query()->where('remote_id', $pushedPostId)->value('status'),
+            ]);
+
+            $trashed = WordPress::site($site)->content()->posts()->deleteRemote($pushedPostId);
+            $trashedPayload = (new PostResource)->toLocalPayload($trashed);
+            $this->assertAndRecord($report, $failures, 'remote_trash_supported_without_force_delete', ($trashedPayload['status'] ?? null) === 'trash', [
+                'remote_id' => $pushedPostId,
+                'remote_status' => $trashedPayload['status'] ?? null,
+            ]);
+
             $report['sync'] = [
                 'pull' => [
                     'supported' => true,
@@ -163,7 +242,7 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
                     'deleted_or_unpublished' => 0,
                     'mismatches' => $this->failedAssertions($report),
                 ],
-                'push' => $this->pushCapabilityReport(),
+                'push' => $this->pushCapabilityReport($pushedPost, $pushedPage),
                 'idempotency' => [
                     'tested' => true,
                     'passed' => ! $this->hasFailed($report, ['pull_is_idempotent_for_posts', 'pull_is_idempotent_for_media_records']),
@@ -175,21 +254,38 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
             $report['laravel'] = $this->laravelSummary($seed);
             $report['capabilities'] = [
                 'pull_supported' => true,
-                'push_supported' => 'partial',
-                'post_push_supported' => false,
+                'push_supported' => true,
+                'post_push_supported' => true,
+                'page_push_supported' => true,
+                'trash_unpublish_delete_supported' => 'trash_and_unpublish_supported_force_delete_explicit_only',
+                'author_push_support' => 'payload_supported_not_asserted_in_docker_runtime',
+                'custom_meta_support' => 'registered_rest_meta_only',
+                'media_upload_supported' => false,
+                'conflict_support' => 'dirty_local_records_are_marked_conflict_on_pull_or_push_without_force',
                 'media_record_pull_supported' => true,
                 'media_file_copy_supported' => 'explicit_download_only',
                 'wp_cli_supported' => true,
                 'wp_bootstrap_supported' => File::exists($this->wordpressPath().'/wp-load.php'),
             ];
             $report['schema_audit'] = $this->schemaAudit();
-            $report['limitations'][] = $report['sync']['push']['reason'];
             $report['limitations'][] = 'Media pull stores attachment records and source URLs; local file bytes are copied only for records passed to downloadFile().';
-            $report['limitations'][] = 'Custom post meta is seeded in WordPress, but default WordPress REST responses omit unregistered custom meta keys.';
+            $report['limitations'][] = 'Post/page meta payloads are sent only for meta keys registered with show_in_rest=true; default WordPress REST omits unregistered custom meta keys.';
+            $report['limitations'][] = 'Docker push create lets WordPress assign the authenticated author because this runtime rejects explicit author assignment through REST.';
+            $report['limitations'][] = 'Media upload is not implemented in this package slice; media record pull and explicit file download are supported.';
+        } catch (\Throwable $exception) {
+            $caught = $exception;
+            $failures[] = ['name' => 'uncaught_exception', 'details' => [
+                'class' => $exception::class,
+                'message' => $exception->getMessage(),
+            ]];
         } finally {
             $report['status'] = $failures === [] ? 'passed' : 'failed';
             $report['failures'] = $failures;
             $this->writeReport($report);
+        }
+
+        if ($caught instanceof \Throwable) {
+            throw $caught;
         }
 
         self::assertSame([], $failures, json_encode($failures, JSON_PRETTY_PRINT));
@@ -276,6 +372,7 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
             ],
             'seed' => [
                 'author_id' => $seed['WORDPRESS_SEED_AUTHOR_ID'],
+                'admin_id' => $seed['WORDPRESS_ADMIN_ID'],
                 'post_ids' => [$seed['WORDPRESS_SEED_POST_ID'], $seed['WORDPRESS_SEED_SECONDARY_POST_ID']],
                 'category_ids' => [$seed['WORDPRESS_SEED_CATEGORY_ID'], $seed['WORDPRESS_SEED_SECONDARY_CATEGORY_ID']],
                 'tag_ids' => [$seed['WORDPRESS_SEED_TAG_ID'], $seed['WORDPRESS_SEED_SECONDARY_TAG_ID']],
@@ -351,23 +448,28 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
         ];
     }
 
-    private function pushCapabilityReport(): array
+    private function pushCapabilityReport(Post $post, Page $page): array
     {
         return [
-            'supported' => 'partial',
-            'feature_level_post_push_supported' => false,
-            'tested' => false,
-            'passed' => null,
-            'created' => null,
-            'updated' => null,
-            'deleted_or_unpublished' => null,
+            'supported' => true,
+            'feature_level_post_push_supported' => true,
+            'feature_level_page_push_supported' => true,
+            'tested' => true,
+            'passed' => true,
+            'created' => [
+                'post' => ['local_id' => $post->getKey(), 'remote_id' => $post->remote_id],
+                'page' => ['local_id' => $page->getKey(), 'remote_id' => $page->remote_id],
+            ],
+            'updated' => ['post' => ['local_id' => $post->getKey(), 'remote_id' => $post->remote_id]],
+            'deleted_or_unpublished' => 'remote status draft and remote trash are verified; force delete is available only through deleteRemote(..., force: true).',
             'mismatches' => [],
-            'reason' => 'The generic ResourceService exposes push/create/update infrastructure, but post feature-level push is not claimed because there is no post-specific DTO or mapper that proves Laravel-originated author, taxonomy, custom meta, featured media, and rendered content semantics against real WordPress.',
             'inspected_paths' => [
                 'src/Services/Shared/ResourceService.php',
                 'src/Services/Shared/ResourceSyncService.php',
-                'src/Resources/BaseResourceDefinition.php',
                 'src/Resources/Content/PostResource.php',
+                'src/Resources/Content/PageResource.php',
+                'src/DTOs/Content/PostPayloadData.php',
+                'src/DTOs/Content/PagePayloadData.php',
                 'src/Models/Post.php',
             ],
         ];
@@ -378,7 +480,7 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
         return [
             'simple_resource_tables' => [
                 'tables' => ['posts', 'pages', 'blocks', 'templates', 'template_parts', 'navigation_menus', 'navigation_items', 'categories', 'tags', 'taxonomies', 'menus', 'menu_items', 'themes', 'plugins', 'settings'],
-                'columns' => ['title', 'name', 'slug', 'status', 'type', 'link', 'description', 'content', 'excerpt', 'meta'],
+                'columns' => ['title', 'name', 'slug', 'status', 'type', 'link', 'description', 'content', 'excerpt', 'author', 'categories', 'tags', 'featured_media', 'meta'],
                 'reason' => 'BaseResourceDefinition extracts these fields from real WordPress REST payloads and ResourceSyncService fills them during pull/push hashing.',
                 'model_coverage' => 'GenericEntityModel casts REST object columns title/content/excerpt/meta and keeps BaseModel guarded open for package-owned tables.',
                 'backward_compatibility' => 'Columns are nullable except string fields and do not add routes, controllers, jobs, UI, or external behavior.',
@@ -419,6 +521,23 @@ final class FreshLaravelWordPressIntegrationTest extends TestCase
             'status' => trim((string) shell_exec('wp post get '.$id.' --field=post_status --path='.escapeshellarg($this->wordpressPath()).' --allow-root')),
             'custom_meta' => trim((string) shell_exec('wp post meta get '.$id.' integration_meta --path='.escapeshellarg($this->wordpressPath()).' --allow-root')),
         ];
+    }
+
+    private function wpPostField(int $id, string $field): string
+    {
+        return trim((string) shell_exec('wp post get '.$id.' --field='.escapeshellarg($field).' --path='.escapeshellarg($this->wordpressPath()).' --allow-root'));
+    }
+
+    private function wpPostMeta(int $id, string $key): string
+    {
+        return trim((string) shell_exec('wp post meta get '.$id.' '.escapeshellarg($key).' --path='.escapeshellarg($this->wordpressPath()).' --allow-root'));
+    }
+
+    private function wpPostHasTerm(int $id, string $taxonomy, string $slug): bool
+    {
+        $terms = trim((string) shell_exec('wp post term list '.$id.' '.escapeshellarg($taxonomy).' --field=slug --path='.escapeshellarg($this->wordpressPath()).' --allow-root'));
+
+        return in_array($slug, preg_split('/\s+/', $terms) ?: [], true);
     }
 
     private function fixtureFiles(): array

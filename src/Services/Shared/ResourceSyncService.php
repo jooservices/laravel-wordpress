@@ -7,10 +7,12 @@ namespace Jooservices\LaravelWordPress\Services\Shared;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Jooservices\LaravelWordPress\DTOs\Shared\SyncConflict;
+use Jooservices\LaravelWordPress\DTOs\Shared\SyncError;
 use Jooservices\LaravelWordPress\DTOs\Shared\SyncResult;
 use Jooservices\LaravelWordPress\Enums\SyncStatus;
 use Jooservices\LaravelWordPress\Models\Site;
 use Jooservices\LaravelWordPress\Resources\Contracts\ResourceDefinition;
+use Throwable;
 
 final class ResourceSyncService
 {
@@ -22,12 +24,32 @@ final class ResourceSyncService
 
     public function pull(ResourceDefinition $definition, Site $site, array $query = []): SyncResult
     {
-        $processed = $succeeded = $conflicted = 0;
+        $query += ['per_page' => (int) config('wordpress.sync.per_page', 100)];
+        $processed = $succeeded = $failed = $conflicted = 0;
+        $errors = [];
         $conflicts = [];
+        $continueOnError = (bool) config('wordpress.sync.continue_on_error', true);
 
         foreach ($this->remote->list($definition, $site, $query) as $remotePayload) {
             $processed++;
-            $result = $this->pullOnePayload($definition, $site, $remotePayload);
+            try {
+                $result = $this->pullOnePayload($definition, $site, $remotePayload);
+            } catch (Throwable $exception) {
+                $failed++;
+                $errors[] = new SyncError(
+                    $definition->entityType()->value,
+                    null,
+                    $this->remoteIdFromPayload($definition, $remotePayload),
+                    $exception->getMessage(),
+                );
+
+                if (! $continueOnError) {
+                    throw $exception;
+                }
+
+                continue;
+            }
+
             if ($result instanceof SyncConflict) {
                 $conflicted++;
                 $conflicts[] = $result;
@@ -36,7 +58,7 @@ final class ResourceSyncService
             }
         }
 
-        return new SyncResult($processed, $succeeded, 0, $conflicted, [], $conflicts);
+        return new SyncResult($processed, $succeeded, $failed, $conflicted, $errors, $conflicts);
     }
 
     public function pullOne(ResourceDefinition $definition, Site $site, int|string $remoteId): Model|SyncConflict
@@ -111,6 +133,19 @@ final class ResourceSyncService
         ]);
         $model->save();
 
-        return new SyncConflict($model::class, (string) $model->getKey(), $remotePayload);
+        return new SyncConflict(
+            $model::class,
+            (string) $model->getKey(),
+            $remotePayload['remote_id'] ?? null,
+            'Local dirty record conflicts with the current remote WordPress payload.',
+            $remotePayload,
+        );
+    }
+
+    private function remoteIdFromPayload(ResourceDefinition $definition, mixed $remotePayload): int|string|null
+    {
+        $payload = $definition->toLocalPayload($remotePayload);
+
+        return $payload['remote_id'] ?? null;
     }
 }

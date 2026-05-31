@@ -13,6 +13,8 @@ abstract class GenericEntityModel extends BaseModel
         'title' => 'array',
         'content' => 'array',
         'excerpt' => 'array',
+        'categories' => 'array',
+        'tags' => 'array',
         'meta' => 'array',
         'synced_at' => 'datetime',
         'last_pulled_at' => 'datetime',

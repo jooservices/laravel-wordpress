@@ -199,6 +199,10 @@ return new class extends Migration
         $table->text('description')->nullable();
         $table->json('content')->nullable();
         $table->json('excerpt')->nullable();
+        $table->unsignedBigInteger('author')->nullable();
+        $table->json('categories')->nullable();
+        $table->json('tags')->nullable();
+        $table->unsignedBigInteger('featured_media')->nullable();
         $table->json('meta')->nullable();
     }
 

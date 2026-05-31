@@ -41,6 +41,7 @@ final class RemoteClientFactory
             maxRetries: (int) config('wordpress.connection.retries', 1),
         );
         $config = new SdkConfig($site->rest_api_base_url ?: $site->base_url, $auth, $http);
+        $authorization = 'Basic '.base64_encode("{$config->auth->username}:{$config->auth->password}");
 
         // The SDK is still the remote API surface. We build its client with
         // base_uri set on the underlying Guzzle instance so relative endpoint
@@ -52,6 +53,7 @@ final class RemoteClientFactory
             ->withOption('base_uri', $config->baseUrl)
             ->withOption('retries', $config->http->maxRetries)
             ->withHeader('Accept', 'application/json')
+            ->withHeader('Authorization', $authorization)
             ->withMiddleware(new PrependBaseUriMiddleware($config->baseUrl), 'base_uri')
             ->withMiddleware(new AuthenticationMiddleware(new BasicAuthenticator($config->auth)), 'auth')
             ->build();
