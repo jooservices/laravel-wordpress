@@ -56,3 +56,8 @@ $media = WordPress::site($site)->media()->files()->upload(new MediaUploadData(
 
 `uploadFile()` is kept only as a backward-compatible alias for `files()->upload(...)` and accepts
 `MediaUploadData`. It no longer pushes media records while pretending to upload bytes.
+
+Upload sources must resolve to a readable, non-empty file. When `MediaUploadData` is built from
+`disk` and `diskPath`, the saved `local_disk` and `local_path` identify that Laravel Storage file.
+When it is built from an absolute `path`, the package uploads the bytes but does not store the
+absolute path as local Storage state.

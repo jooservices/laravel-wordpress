@@ -36,12 +36,12 @@ final class MediaRecordService
 
     public function createLocal(array $payload): MediaItem
     {
-        return $this->resources->createLocal($payload);
+        return $this->ensureMediaItem($this->resources->createLocal($payload));
     }
 
     public function updateLocal(MediaItem $media, array $payload): MediaItem
     {
-        return $this->resources->updateLocal($media, $payload);
+        return $this->ensureMediaItem($this->resources->updateLocal($media, $payload));
     }
 
     public function deleteLocal(MediaItem $media): bool
@@ -111,6 +111,15 @@ final class MediaRecordService
 
     public function resolveConflictManually(MediaItem $media, array $payload): MediaItem
     {
-        return $this->resources->resolveConflictManually($media, $payload);
+        return $this->ensureMediaItem($this->resources->resolveConflictManually($media, $payload));
+    }
+
+    private function ensureMediaItem(mixed $model): MediaItem
+    {
+        if ($model instanceof MediaItem) {
+            return $model;
+        }
+
+        throw new WordPressException('Expected media record local operation to return a MediaItem.');
     }
 }

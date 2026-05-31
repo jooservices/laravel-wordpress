@@ -51,27 +51,12 @@ final class MediaService
         return $this->records()->checkSyncState($media);
     }
 
-    public function checkFileSyncState(MediaItem $media): object
-    {
-        return $this->records()->checkSyncState($media);
-    }
-
     public function resolveRecordConflictUsingLocal(MediaItem $media): object
     {
         return $this->records()->resolveConflictUsingLocal($media);
     }
 
     public function resolveRecordConflictUsingRemote(MediaItem $media): object
-    {
-        return $this->records()->resolveConflictUsingRemote($media);
-    }
-
-    public function resolveFileConflictUsingLocal(MediaItem $media): object
-    {
-        return $this->records()->resolveConflictUsingLocal($media);
-    }
-
-    public function resolveFileConflictUsingRemote(MediaItem $media): object
     {
         return $this->records()->resolveConflictUsingRemote($media);
     }

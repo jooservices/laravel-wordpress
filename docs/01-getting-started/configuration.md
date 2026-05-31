@@ -15,4 +15,4 @@ Configure table prefix, connection retries, sync defaults, and media storage.
 | `media.download_original` | `true` | Reserved flag for preferring original media files. |
 | `media.overwrite_existing` | `false` | Reserved flag for local overwrite behavior. |
 | `media.max_file_size` | `52428800` | Maximum downloaded media size in bytes. |
-| `media.allowed_mime_types` | common image, PDF, text, ZIP, JSON types | MIME allow-list checked when downloads expose a content type. |
+| `media.allowed_mime_types` | common image, PDF, text, ZIP, JSON types | MIME allow-list checked for uploads and when downloads expose a content type. |

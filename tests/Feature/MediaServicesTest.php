@@ -39,6 +39,7 @@ final class MediaServicesTest extends TestCase
         $updated = $records->updateLocal($media, ['alt_text' => 'Alt']);
 
         self::assertInstanceOf(MediaItem::class, $media);
+        self::assertInstanceOf(MediaItem::class, $updated);
         self::assertSame('Alt', $updated->alt_text);
         self::assertTrue($records->deleteLocal($updated));
     }
@@ -95,6 +96,27 @@ final class MediaServicesTest extends TestCase
         );
     }
 
+    public function test_upload_file_alias_delegates_to_file_upload_service(): void
+    {
+        $site = WordPress::sites()->create(new SiteCreateData('Media', 'https://example.com'));
+        $method = new \ReflectionMethod(WordPress::site($site)->media(), 'uploadFile');
+        $source = file($method->getFileName() ?: '', flags: FILE_IGNORE_NEW_LINES);
+        $body = implode("\n", array_slice($source ?: [], $method->getStartLine() - 1, $method->getEndLine() - $method->getStartLine() + 1));
+
+        self::assertStringContainsString('$this->files()->upload($data)', $body);
+        self::assertStringNotContainsString('records()->push', $body);
+    }
+
+    public function test_media_service_does_not_expose_file_conflict_methods_without_file_conflict_lifecycle(): void
+    {
+        $site = WordPress::sites()->create(new SiteCreateData('Media', 'https://example.com'));
+        $media = WordPress::site($site)->media();
+
+        self::assertFalse(method_exists($media, 'checkFileSyncState'));
+        self::assertFalse(method_exists($media, 'resolveFileConflictUsingLocal'));
+        self::assertFalse(method_exists($media, 'resolveFileConflictUsingRemote'));
+    }
+
     public function test_remote_media_record_create_points_callers_to_file_upload(): void
     {
         $site = WordPress::sites()->create(new SiteCreateData('Media', 'https://example.com'));
@@ -103,5 +125,77 @@ final class MediaServicesTest extends TestCase
         $this->expectExceptionMessage('Use media()->files()->upload(...)');
 
         WordPress::site($site)->media()->records()->createRemote(['title' => 'No bytes']);
+    }
+
+    public function test_remote_media_record_update_reports_sdk_limitation(): void
+    {
+        $site = WordPress::sites()->create(new SiteCreateData('Media', 'https://example.com'));
+
+        $this->expectException(WordPressException::class);
+        $this->expectExceptionMessage('Remote media record update is not exposed');
+
+        WordPress::site($site)->media()->records()->updateRemote(123, ['title' => 'No SDK support']);
+    }
+
+    public function test_media_file_upload_validates_missing_file(): void
+    {
+        $site = WordPress::sites()->create(new SiteCreateData('Media', 'https://example.com'));
+
+        $this->expectException(WordPressException::class);
+        $this->expectExceptionMessage('does not exist');
+
+        WordPress::site($site)->media()->files()->upload(new MediaUploadData(
+            path: sys_get_temp_dir().'/missing-media-upload-'.bin2hex(random_bytes(4)).'.txt',
+        ));
+    }
+
+    public function test_media_file_upload_validates_non_file_source(): void
+    {
+        $site = WordPress::sites()->create(new SiteCreateData('Media', 'https://example.com'));
+        $directory = sys_get_temp_dir().'/media-upload-directory-'.bin2hex(random_bytes(4));
+        mkdir($directory);
+
+        try {
+            $this->expectException(WordPressException::class);
+            $this->expectExceptionMessage('must be a file');
+
+            WordPress::site($site)->media()->files()->upload(new MediaUploadData(path: $directory));
+        } finally {
+            rmdir($directory);
+        }
+    }
+
+    public function test_media_file_upload_validates_empty_file(): void
+    {
+        $site = WordPress::sites()->create(new SiteCreateData('Media', 'https://example.com'));
+        $path = tempnam(sys_get_temp_dir(), 'media-empty-');
+
+        try {
+            $this->expectException(WordPressException::class);
+            $this->expectExceptionMessage('is empty');
+
+            WordPress::site($site)->media()->files()->upload(new MediaUploadData(path: $path));
+        } finally {
+            unlink($path);
+        }
+    }
+
+    public function test_media_file_upload_validates_disallowed_mime_type(): void
+    {
+        $site = WordPress::sites()->create(new SiteCreateData('Media', 'https://example.com'));
+        $path = tempnam(sys_get_temp_dir(), 'media-mime-');
+        file_put_contents($path, 'not an image');
+
+        try {
+            $this->expectException(WordPressException::class);
+            $this->expectExceptionMessage('is not allowed');
+
+            WordPress::site($site)->media()->files()->upload(new MediaUploadData(
+                path: $path,
+                mimeType: 'application/x-not-allowed',
+            ));
+        } finally {
+            unlink($path);
+        }
     }
 }
