@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Jooservices\LaravelWordPress;
 
 use Illuminate\Support\ServiceProvider;
+use Jooservices\LaravelWordPress\Contracts\RemoteClientFactory as RemoteClientFactoryContract;
 use Jooservices\LaravelWordPress\Services\Manager;
+use Jooservices\LaravelWordPress\Services\RemoteClientFactory;
 use Jooservices\LaravelWordPress\Services\Shared\MediaStorage;
 use Jooservices\LaravelWordPress\Services\Shared\PayloadHasher;
 use Jooservices\LaravelWordPress\Services\Shared\ResourceServiceFactory;
@@ -19,6 +21,7 @@ final class LaravelWordPressServiceProvider extends ServiceProvider
 
         $this->app->singleton(Manager::class);
         $this->app->alias(Manager::class, 'laravel-wordpress');
+        $this->app->singleton(RemoteClientFactoryContract::class, RemoteClientFactory::class);
 
         $this->app->singleton(PayloadHasher::class);
         $this->app->singleton(SyncStateChecker::class);

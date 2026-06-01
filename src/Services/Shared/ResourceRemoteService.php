@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Jooservices\LaravelWordPress\Services\Shared;
 
+use Jooservices\LaravelWordPress\Contracts\RemoteClientFactory;
 use Jooservices\LaravelWordPress\Exceptions\WordPressException;
 use Jooservices\LaravelWordPress\Models\Site;
 use Jooservices\LaravelWordPress\Resources\Contracts\ResourceDefinition;
-use Jooservices\LaravelWordPress\Services\RemoteClientFactory;
 
 final class ResourceRemoteService
 {

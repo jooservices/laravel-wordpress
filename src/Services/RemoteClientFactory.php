@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Jooservices\LaravelWordPress\Services;
 
 use JOOservices\Client\Client\ClientBuilder;
+use Jooservices\LaravelWordPress\Contracts\RemoteClientFactory as RemoteClientFactoryContract;
 use Jooservices\LaravelWordPress\Enums\AuthType;
 use Jooservices\LaravelWordPress\Exceptions\RemoteNotConfiguredException;
 use Jooservices\LaravelWordPress\Models\Credential;
@@ -25,7 +26,7 @@ use Symfony\Component\Serializer\Normalizer\ArrayDenormalizer;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
 
-final class RemoteClientFactory
+final class RemoteClientFactory implements RemoteClientFactoryContract
 {
     public function make(Site $site, ?Credential $credential = null): RemoteClient
     {
